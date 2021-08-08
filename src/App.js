@@ -1,5 +1,5 @@
 import "./App.css";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Container from "@material-ui/core/Container";
 import Table from "@material-ui/core/Table";
 import TableBody from "@material-ui/core/TableBody";
@@ -72,7 +72,7 @@ function App() {
       return [].concat(prevRows);
     });
   };
-  const getTotalResources = () => {
+  const getTotalResources = useCallback(() => {
     let totalCpus = 0;
     let totalMemories = 0;
     for (const row of rows) {
@@ -80,7 +80,7 @@ function App() {
       totalMemories += getMemoryPerInstances(row);
     }
     return totalCpus + totalMemories;
-  };
+  });
   const getTotalNodesNeeded = (family) => {
     const availableResources = getAvailableResources(family);
     return totalResources / availableResources;
