@@ -1,5 +1,7 @@
 import "./App.css";
 import { useEffect, useState, useCallback } from "react";
+import { makeStyles } from "@material-ui/core/styles";
+import Grid from "@material-ui/core/Grid";
 import Container from "@material-ui/core/Container";
 import Table from "@material-ui/core/Table";
 import TableBody from "@material-ui/core/TableBody";
@@ -14,7 +16,13 @@ import TextField from "@material-ui/core/TextField";
 import Card from "@material-ui/core/Card";
 import CardContent from "@material-ui/core/CardContent";
 
+const useStyles = makeStyles((theme) => ({
+  families: {
+    marginTop: "10px",
+  },
+}));
 function App() {
+  const classes = useStyles();
   const [rows, setRows] = useState([]);
   const [totalResources, setTotalResources] = useState(0);
   const daemonsetcpu = 200;
@@ -195,17 +203,23 @@ function App() {
           </TableFooter>
         </Table>
       </TableContainer>
-      {resources.map((r) => (
-        <Card variant="outlined">
-          <CardContent>
-            <h2>{r.family}</h2>
-            <ul>
-              <li>Available resources: {getAvailableResources(r.family)}</li>
-              <li>Total nodes needed: {getTotalNodesNeeded(r.family)}</li>
-            </ul>
-          </CardContent>
-        </Card>
-      ))}
+      <Grid container spacing={3} className={classes.families}>
+        {resources.map((r) => (
+          <Grid item xs={4}>
+            <Card variant="outlined">
+              <CardContent>
+                <h2>{r.family}</h2>
+                <ul>
+                  <li>
+                    Available resources: {getAvailableResources(r.family)}
+                  </li>
+                  <li>Total nodes needed: {getTotalNodesNeeded(r.family)}</li>
+                </ul>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
     </Container>
   );
 }
