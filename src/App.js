@@ -14,11 +14,17 @@ import Paper from "@material-ui/core/Paper";
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
 import Card from "@material-ui/core/Card";
+import CardHeader from "@material-ui/core/CardHeader";
 import CardContent from "@material-ui/core/CardContent";
 
 const useStyles = makeStyles((theme) => ({
   families: {
     marginTop: "10px",
+  },
+  table_footer: {
+    fontSize: "1rem",
+    color: "#000",
+    fontWeight: "bold",
   },
 }));
 function App() {
@@ -34,6 +40,7 @@ function App() {
       memory: 12601,
     },
     { family: "b8ms_d8as", cpu: 7820, memory: 27721 },
+    { family: "b16ms_d16as", cpu: 15640, memory: 55442 },
   ];
   const getAvailableResources = (family) => {
     const resource = resources.find((f) => f.family === family);
@@ -62,15 +69,21 @@ function App() {
       return [].concat(prevRows).concat(row);
     });
   };
-  const getTotalNumOfInstances = (row) => {
+  const getTotalNumOfInstances = useCallback((row) => {
     return row ? +row.numOfTenants * +row.numOfDesiredPods : -1;
-  };
-  const getCpuPerInstances = (row) => {
-    return row ? +row.cpuRequest * getTotalNumOfInstances(row) : -1;
-  };
-  const getMemoryPerInstances = (row) => {
-    return row ? +row.memoryRequest * getTotalNumOfInstances(row) : -1;
-  };
+  }, []);
+  const getCpuPerInstances = useCallback(
+    (row) => {
+      return row ? +row.cpuRequest * getTotalNumOfInstances(row) : -1;
+    },
+    [getTotalNumOfInstances]
+  );
+  const getMemoryPerInstances = useCallback(
+    (row) => {
+      return row ? +row.memoryRequest * getTotalNumOfInstances(row) : -1;
+    },
+    [getTotalNumOfInstances]
+  );
   const removeRow = (row) => {
     setRows((prevRows) => {
       const index = prevRows.indexOf(row);
@@ -88,10 +101,10 @@ function App() {
       totalMemories += getMemoryPerInstances(row);
     }
     return totalCpus + totalMemories;
-  });
+  }, [rows, getCpuPerInstances, getMemoryPerInstances]);
   const getTotalNodesNeeded = (family) => {
     const availableResources = getAvailableResources(family);
-    return totalResources / availableResources;
+    return (totalResources / availableResources).toFixed(2);
   };
   useEffect(() => {
     setTotalResources(getTotalResources(rows));
@@ -197,24 +210,26 @@ function App() {
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell>Total resources requested</TableCell>
-              <TableCell>{getTotalResources()}</TableCell>
+              <TableCell colSpan={7} className={classes.table_footer}>
+                Total resources requested
+              </TableCell>
+              <TableCell align="right" className={classes.table_footer}>
+                {getTotalResources()}
+              </TableCell>
             </TableRow>
           </TableFooter>
         </Table>
       </TableContainer>
       <Grid container spacing={3} className={classes.families}>
         {resources.map((r) => (
-          <Grid item xs={4}>
+          <Grid item xs={3}>
             <Card variant="outlined">
+              <CardHeader title={r.family}></CardHeader>
               <CardContent>
-                <h2>{r.family}</h2>
-                <ul>
-                  <li>
-                    Available resources: {getAvailableResources(r.family)}
-                  </li>
-                  <li>Total nodes needed: {getTotalNodesNeeded(r.family)}</li>
-                </ul>
+                Available resources: {getAvailableResources(r.family)}
+                <br />
+                <br />
+                Total nodes needed: {getTotalNodesNeeded(r.family)}
               </CardContent>
             </Card>
           </Grid>
