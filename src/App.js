@@ -16,6 +16,7 @@ import TextField from "@material-ui/core/TextField";
 import Card from "@material-ui/core/Card";
 import CardHeader from "@material-ui/core/CardHeader";
 import CardContent from "@material-ui/core/CardContent";
+import Icon from "@material-ui/core/Icon";
 
 const useStyles = makeStyles((theme) => ({
   families: {
@@ -30,6 +31,7 @@ const useStyles = makeStyles((theme) => ({
 function App() {
   const classes = useStyles();
   const [rows, setRows] = useState([]);
+  const [csvUrl, setCsvUrl] = useState(null);
   const [totalResources, setTotalResources] = useState(0);
   const daemonsetcpu = 200;
   const resources = [
@@ -45,6 +47,12 @@ function App() {
   const getAvailableResources = (family) => {
     const resource = resources.find((f) => f.family === family);
     return resource.cpu + resource.memory - daemonsetcpu;
+  };
+  const onKeyPress = (e) => {
+    if (e.keyCode !== 13 && e.charCode !== 13) {
+      return;
+    }
+    addRow();
   };
   const addRow = () => {
     const newRow = {
@@ -108,8 +116,21 @@ function App() {
   };
   useEffect(() => {
     setTotalResources(getTotalResources(rows));
-  }, [getTotalResources, rows, setTotalResources]);
-
+    const csvContent = `AppName,cpuRequest,cpuPerInstances,memoryRequest,memoryPerInstances,numOfTenants,numOfDesiredPods\n${rows
+      .map((r) => {
+        return `${r.appName},${r.cpuRequest},${getCpuPerInstances(r)},${
+          r.memoryRequest
+        },${getMemoryPerInstances(r)},${r.numOfTenants},${r.numOfDesiredPods}`;
+      })
+      .join("\n")}`;
+    setCsvUrl(csvContent);
+  }, [
+    getTotalResources,
+    rows,
+    setTotalResources,
+    getCpuPerInstances,
+    getMemoryPerInstances,
+  ]);
   return (
     <Container maxWidth="lg">
       <TableContainer component={Paper}>
@@ -132,19 +153,23 @@ function App() {
                     addRow();
                   }}
                 >
-                  Add
+                  <Icon>add</Icon>
                 </Button>
               </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map((row) => (
+            {rows.map((row, i) => (
               <TableRow key={row.id}>
                 <TableCell component="th" scope="row">
                   <TextField
                     variant="outlined"
                     type="text"
                     defaultValue={row.appName}
+                    onKeyPress={onKeyPress}
+                    onChange={(e) => {
+                      updateField(row, "appName", e.target.value);
+                    }}
                   />
                 </TableCell>
                 <TableCell align="right">
@@ -152,6 +177,7 @@ function App() {
                     variant="outlined"
                     type="number"
                     defaultValue={row.cpuRequest}
+                    onKeyPress={onKeyPress}
                     onChange={(e) => {
                       updateField(row, "cpuRequest", e.target.value);
                     }}
@@ -163,6 +189,7 @@ function App() {
                     variant="outlined"
                     type="number"
                     defaultValue={row.memoryRequest}
+                    onKeyPress={onKeyPress}
                     onChange={(e) => {
                       updateField(row, "memoryRequest", e.target.value);
                     }}
@@ -176,6 +203,7 @@ function App() {
                     variant="outlined"
                     type="number"
                     defaultValue={row.numOfTenants}
+                    onKeyPress={onKeyPress}
                     onChange={(e) => {
                       updateField(row, "numOfTenants", e.target.value);
                     }}
@@ -186,6 +214,7 @@ function App() {
                     variant="outlined"
                     type="number"
                     defaultValue={row.numOfDesiredPods}
+                    onKeyPress={onKeyPress}
                     onChange={(e) => {
                       updateField(row, "numOfDesiredPods", e.target.value);
                     }}
@@ -202,7 +231,7 @@ function App() {
                       removeRow(row);
                     }}
                   >
-                    Remove
+                    <Icon>remove</Icon>
                   </Button>
                 </TableCell>
               </TableRow>
@@ -216,13 +245,27 @@ function App() {
               <TableCell align="right" className={classes.table_footer}>
                 {getTotalResources()}
               </TableCell>
+
+              <TableCell align="right">
+                {rows.length && csvUrl ? (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    href={`data:text/csv;charset=utf-8,${csvUrl}`}
+                    download="nodepool.csv"
+                    target="download"
+                  >
+                    <Icon>download</Icon>
+                  </Button>
+                ) : null}
+              </TableCell>
             </TableRow>
           </TableFooter>
         </Table>
       </TableContainer>
       <Grid container spacing={3} className={classes.families}>
         {resources.map((r) => (
-          <Grid item xs={3}>
+          <Grid item xs={3} key={r.family}>
             <Card variant="outlined">
               <CardHeader title={r.family}></CardHeader>
               <CardContent>
