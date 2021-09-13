@@ -73,6 +73,7 @@ function App() {
   };
   const DAEMONSETS_CPU = 200;
   const ZERO_TO_FIXED = (0.0).toFixed(2);
+  const MAX_PODS_PER_NODE = 250;
   const resources = [
     {
       family: "b2ms_d2as",
@@ -165,9 +166,92 @@ function App() {
       const r = resources[i];
       result[r.family] = {
         nodesNeeded: getTotalNodesNeeded(r.family),
+        nodesNeeded_reviewed: countNodes(getAvailableResources(r.family)),
       };
     }
     setTotals(result);
+  };
+
+  const fillSvcsList = () => {
+    const result = [];
+    for (let svc of rows) {
+      const iterations = +svc.numOfDesiredPods * +svc.numOfTenants;
+      for (let i = 0; i < iterations; i++) {
+        result.push({
+          appName: svc.appName,
+          resources: +svc.cpuRequest + +svc.memoryRequest,
+        });
+      }
+    }
+    return result;
+  };
+  const countNodes = (availableSpace) => {
+    const svcs = fillSvcsList();
+    return fillSpace(svcs, availableSpace, availableSpace, 1);
+  };
+  const fillSpace = (svcs, maxAvailableSpace, availableSpace, nodesNeeded) => {
+    let remaining_space = availableSpace;
+    const filled_svcs = [];
+    const remaining_svcs = [];
+    for (let svc of svcs) {
+      // console.log(svc);
+      if (filled_svcs.length >= MAX_PODS_PER_NODE) {
+        remaining_svcs.push(svc);
+        continue;
+      }
+      const resources = svc.resources;
+      const have_space = remaining_space - resources;
+      if (have_space > 0) {
+        remaining_space -= resources;
+        filled_svcs.push(svc);
+        continue;
+      }
+
+      remaining_svcs.push(svc);
+    }
+
+    // console.log("===================");
+    // console.log("Total services: {0}", svcs.length);
+    // console.log(
+    //   "remaining_space: {0} ({1}%)",
+    //   remaining_space,
+    //   ((remaining_space * 1.0) / (maxAvailableSpace * 1.0)) * 100.0
+    // );
+    // console.log("filled_svcs {0}", filled_svcs.length);
+    // console.log("remaining_svcs {0}", remaining_svcs.length);
+    if (!remaining_svcs.length) {
+      // console.log("No more services remaining");
+      return nodesNeeded;
+    }
+
+    const resourcesMap = remaining_svcs.map(
+      (s) => getCpuPerInstances(s) + getMemoryPerInstances(s)
+    );
+    const lowestSvcResources = Math.min.apply(Math, resourcesMap);
+    //console.log("lowestSvcResources {0}", lowestSvcResources);
+
+    if (lowestSvcResources <= remaining_space) {
+      // console.log("space available");
+      return fillSpace(
+        remaining_svcs,
+        maxAvailableSpace,
+        remaining_space,
+        nodesNeeded
+      );
+    }
+    if (lowestSvcResources > maxAvailableSpace) {
+      return nodesNeeded;
+    }
+    // console.log("new node spawn", maxAvailableSpace);
+    nodesNeeded++;
+    // if (nodesNeeded < 3) {
+    return fillSpace(
+      remaining_svcs,
+      maxAvailableSpace,
+      maxAvailableSpace,
+      nodesNeeded
+    );
+    // }
   };
   useEffect(() => {
     setTotalResources(getTotalResources(rows));
@@ -363,6 +447,10 @@ function App() {
                 <br />
                 Total nodes needed:{" "}
                 {totals ? totals[r.family].nodesNeeded : ZERO_TO_FIXED}
+                <br />
+                <br />
+                Total nodes needed (reviewed):{" "}
+                {totals ? totals[r.family].nodesNeeded_reviewed : ZERO_TO_FIXED}
               </CardContent>
             </Card>
           </Grid>
