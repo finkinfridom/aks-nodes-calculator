@@ -33,9 +33,44 @@ function App() {
   const [rows, setRows] = useState([]);
   const [csvUrl, setCsvUrl] = useState(null);
   const [totalResources, setTotalResources] = useState(0);
+
+  const processCSV = (str, delim = ",") => {
+    const headers = str.slice(0, str.indexOf("\n")).split(delim);
+    const rows = str.slice(str.indexOf("\n") + 1).split("\n");
+
+    const newArray = rows.map((row) => {
+      const rowId = new Date().getTime();
+      const values = row.split(delim);
+      const eachObject = headers.reduce((obj, header, i) => {
+        if (header === "AppName") {
+          header = "appName";
+        }
+        obj[header] = values[i];
+        return obj;
+      }, {});
+      eachObject.id = `${eachObject.appName}-${rowId}`;
+      return eachObject;
+    });
+
+    setRows(newArray);
+  };
+  const readCsvFile = (csvFile) => {
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+      const text = e.target.result;
+      processCSV(text);
+    };
+
+    reader.readAsText(csvFile);
+  };
   const daemonsetcpu = 200;
   const resources = [
-    { family: "b2ms_d2as", cpu: 1900, memory: 7961 },
+    {
+      family: "b2ms_d2as",
+      cpu: 1900,
+      memory: 7961,
+    },
     {
       family: "b4ms_d4as",
       cpu: 3860,
@@ -74,7 +109,9 @@ function App() {
       if (index !== -1) {
         prevRows.splice(index, 1);
       }
-      return [].concat(prevRows).concat(row);
+      const result = [].concat(prevRows);
+      result.splice(index !== -1 ? index : result.length - 1, 0, row);
+      return result;
     });
   };
   const getTotalNumOfInstances = useCallback((row) => {
@@ -116,7 +153,7 @@ function App() {
   };
   useEffect(() => {
     setTotalResources(getTotalResources(rows));
-    const csvContent = `AppName,cpuRequest,cpuPerInstances,memoryRequest,memoryPerInstances,numOfTenants,numOfDesiredPods\n${rows
+    const csvContent = `appName,cpuRequest,cpuPerInstances,memoryRequest,memoryPerInstances,numOfTenants,numOfDesiredPods\n${rows
       .map((r) => {
         return `${r.appName},${r.cpuRequest},${getCpuPerInstances(r)},${
           r.memoryRequest
@@ -239,13 +276,12 @@ function App() {
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell colSpan={7} className={classes.table_footer}>
+              <TableCell colSpan={6} className={classes.table_footer}>
                 Total resources requested
               </TableCell>
               <TableCell align="right" className={classes.table_footer}>
                 {getTotalResources()}
               </TableCell>
-
               <TableCell align="right">
                 {rows.length && csvUrl ? (
                   <Button
@@ -258,6 +294,27 @@ function App() {
                     <Icon>download</Icon>
                   </Button>
                 ) : null}
+              </TableCell>
+
+              <TableCell align="right">
+                <input
+                  type="file"
+                  accept=".csv"
+                  style={{ display: "none" }}
+                  id="contained-button-file"
+                  onChange={(e) => {
+                    readCsvFile(e.target.files[0]);
+                  }}
+                />
+                <label htmlFor="contained-button-file">
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    component="span"
+                  >
+                    <Icon>upload</Icon>
+                  </Button>
+                </label>
               </TableCell>
             </TableRow>
           </TableFooter>
