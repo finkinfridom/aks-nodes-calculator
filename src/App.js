@@ -27,12 +27,19 @@ const useStyles = makeStyles((theme) => ({
     color: "#000",
     fontWeight: "bold",
   },
+  actions: {
+    marginRight: "10px",
+  },
+  lastOf: {
+    marginRight: 0,
+  },
 }));
 function App() {
   const classes = useStyles();
   const [rows, setRows] = useState([]);
   const [csvUrl, setCsvUrl] = useState(null);
   const [totalResources, setTotalResources] = useState(0);
+  const [totals, setTotals] = useState(null);
 
   const processCSV = (str, delim = ",") => {
     const headers = str.slice(0, str.indexOf("\n")).split(delim);
@@ -64,7 +71,8 @@ function App() {
 
     reader.readAsText(csvFile);
   };
-  const daemonsetcpu = 200;
+  const DAEMONSETS_CPU = 200;
+  const ZERO_TO_FIXED = (0.0).toFixed(2);
   const resources = [
     {
       family: "b2ms_d2as",
@@ -81,7 +89,7 @@ function App() {
   ];
   const getAvailableResources = (family) => {
     const resource = resources.find((f) => f.family === family);
-    return resource.cpu + resource.memory - daemonsetcpu;
+    return resource.cpu + resource.memory - DAEMONSETS_CPU;
   };
   const onKeyPress = (e) => {
     if (e.keyCode !== 13 && e.charCode !== 13) {
@@ -150,6 +158,16 @@ function App() {
   const getTotalNodesNeeded = (family) => {
     const availableResources = getAvailableResources(family);
     return (totalResources / availableResources).toFixed(2);
+  };
+  const calculateTotals = () => {
+    const result = {};
+    for (let i = 0; i < resources.length; i++) {
+      const r = resources[i];
+      result[r.family] = {
+        nodesNeeded: getTotalNodesNeeded(r.family),
+      };
+    }
+    setTotals(result);
   };
   useEffect(() => {
     setTotalResources(getTotalResources(rows));
@@ -276,17 +294,33 @@ function App() {
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell colSpan={6} className={classes.table_footer}>
+              <TableCell colSpan={8} className={classes.table_footer}>
                 Total resources requested
               </TableCell>
               <TableCell align="right" className={classes.table_footer}>
                 {getTotalResources()}
               </TableCell>
-              <TableCell align="right">
+            </TableRow>
+            <TableRow>
+              <TableCell colSpan={6}></TableCell>
+              <TableCell align="right" colSpan={3}>
                 {rows.length && csvUrl ? (
                   <Button
+                    className={classes.actions}
                     variant="contained"
                     color="primary"
+                    onClick={() => {
+                      calculateTotals();
+                    }}
+                  >
+                    <Icon>sync</Icon>
+                  </Button>
+                ) : null}
+                {rows.length && csvUrl ? (
+                  <Button
+                    className={classes.actions}
+                    variant="contained"
+                    color="secondary"
                     href={`data:text/csv;charset=utf-8,${csvUrl}`}
                     download="nodepool.csv"
                     target="download"
@@ -294,9 +328,6 @@ function App() {
                     <Icon>download</Icon>
                   </Button>
                 ) : null}
-              </TableCell>
-
-              <TableCell align="right">
                 <input
                   type="file"
                   accept=".csv"
@@ -308,6 +339,7 @@ function App() {
                 />
                 <label htmlFor="contained-button-file">
                   <Button
+                    className={`${classes.actions} ${classes.lastOf}`}
                     variant="contained"
                     color="secondary"
                     component="span"
@@ -329,7 +361,8 @@ function App() {
                 Available resources: {getAvailableResources(r.family)}
                 <br />
                 <br />
-                Total nodes needed: {getTotalNodesNeeded(r.family)}
+                Total nodes needed:{" "}
+                {totals ? totals[r.family].nodesNeeded : ZERO_TO_FIXED}
               </CardContent>
             </Card>
           </Grid>
